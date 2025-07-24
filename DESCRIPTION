@@ -1,0 +1,17 @@
+Package: ReER
+Type: Package
+Title: Renewable estimation of Expectile Regression
+Version: 0.1.0
+Authors@R: c(person("Shanshan", "Wang", email = "sswang@buaa.edu.cn", role = "aut"),
+  person("Wei", "Cao", email = "by2208102@buaa.edu.cn", role = "cre"))
+Maintainer: Cao Wei <caowei2208@buaa.edu.cn>
+Description: Renewable Expectile Regression for stream dataset. Return different renewable estimator with distributed based, weight aggregation based and Taylor approximation based algorihtms.
+Imports:
+  expectreg,
+  MASS,
+  dplyr,
+  stats
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+RoxygenNote: 7.3.2
