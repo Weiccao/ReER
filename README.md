@@ -1,51 +1,45 @@
-# ReER
- Renewable Estimation for Expectile Regression
- 
-## Installation
-You can install the **development** version from
-[Github](https://github.com/Weiccao/ReER)
+We provide code to reproduce the results of the Numerical Experiments in our work Renewable Expectile Regression for Streaming Data: Estimation and Statistical Inference. Two experimental settings are considered:
 
-```s
-# install.packages("remotes")
-remotes::install_github("Weiccao/ReER")
+* Scenario S1: Fix N = 100, 000 and vary the batch size n to evaluate the impact of batch size on performance.
+
+* Scenario S2: Fix nt = 100 and vary the number of batches b to evaluate the number
+
+All scripts should be executed from the project root directory to ensure that relative paths are correctly resolved.
+
+⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻
+
+Description of Main Simulation Code
+
+* functions.R
+    Provides core functions for the ReER algorithm and other competitive methods.
+  
+* sim.R
+    Implements the main simulation procedures to reproduce the results.
+
+⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻⸻
+
+Example Usage
 ```
+Target_tau = 0.5
+# ==============================================================================
+# 模拟 N = 10000，固定场景
+run_experiment(
+  sim_time = 500, dgpType = 'fixed',
+  simType = "sim1",
+  uDist = "norm",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau
+)
+# ==============================================================================
 
-## Usage
-
-```s
-library(expectreg)
-library(MASS)
-library(dplyr)
-
-# generate data
-N <- 1000; k <- 10
-x1 <- runif(N); x2 <- runif(N)
-Xmat <- cbind(x1, x2)
-X <- cbind(1, Xmat); Xc <- cbind(1, scale(Xmat, scale = FALSE))
-u <- rnorm(N)
-beta <- c(2,1,2); gamma <- c(1, 0, 0)
-Y <- X %*% beta + X %*% gamma * u
-Yc <- Xc %*% beta + Xc %*% gamma * u
-
-# generate stream datatset
-indices <- split(1:N, cut(1:N, breaks = k, labels = FALSE))
-X_split <- lapply(indices, function(idx) X[idx, , drop = FALSE])
-Y_split <- lapply(indices, function(idx) Y[idx])
-Xc_split <- lapply(indices, function(idx) Xc[idx, , drop = FALSE])
-Yc_split <- lapply(indices, function(idx) Yc[idx])
-
-# estimate
-result <- online_alg(X = X_split, Y = Y_split,
-                     Xc = Xc_split, Yc = Yc_split,
-                     K = k, tau = 0.25,
-                     regFormula = Y ~ x1 + x2,
-                     dataName = c("Y", "x0", "x1", "x2"))
-
-Result.df <- as.data.frame(rbind(result$DCER, result$PAER, result$ReER))
-rownames(Result.df) <- c("DCER", "PAER", "ReER"); colnames(Result.df) <- c("beta0", "beta1", "beta2")
-Result.df
+# 模拟 nk = 300，stream场景
+run_experiment(
+  sim_time = 500, dgpType = 'stream',
+  simType = "sim1",
+  uDist = "norm",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau
+)
 ```
-
-## License
-
-This package is free and open source software, licensed under GPL-3.
