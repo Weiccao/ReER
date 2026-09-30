@@ -14,10 +14,13 @@ generateData <- function(N, simType = c('sim1', 'sim2'), uDist = "norm", doScale
   
   x1 <- runif(N); x2 <- runif(N)
   Xmat <- cbind(x1, x2)
+  #X <- cbind(1, if (doScale) scale(Xmat, scale = FALSE) else Xmat)
   X <- cbind(1, Xmat)
+  #Xc <- cbind(1, scale(Xmat, scale = FALSE))
   
   u <- if (uDist == 'norm') rnorm(N) else rt(N, df = 3)
   Y <- X %*% beta + X %*% gamma * u
+  #Yc <- Xc %*% beta + Xc %*% gamma * u
   betaTrue <- beta + gamma * (if (uDist == 'norm') enorm(tau) else et(tau,df =3))
   
   return(list(X = X, Y = as.vector(Y), 
@@ -27,6 +30,7 @@ generateData <- function(N, simType = c('sim1', 'sim2'), uDist = "norm", doScale
 #---- matrix functions ----#
 uMatrix <- function(tau, X, Y, beta) {
   W_vec <- weightMatrix(tau, X, Y, beta)
+  #return(crossprod(X, W %*% X) / length(Y))
   return(crossprod(X * sqrt(W_vec)/length(Y)))
 }
 
@@ -37,6 +41,7 @@ vMatrix <- function(tau, X, Y, beta, covType = c('Heter', 'Homo')) {
     W <- diag(W_vec)
     V <- t(X) %*% W %*% epsilon %*% t(epsilon) %*% W %*% X / length(Y)
   } else {
+    #w <- diag(W)
     V <- (sum((W_vec * epsilon)^2) *  crossprod(X)) / length(Y)
   }
   return(V)
@@ -96,6 +101,14 @@ DCER <- function(X, Y, beta, Q_cum, Q_beta_cum, tau, covType = c('Heter', 'Homo'
   if (!exists("beta_new") || any(is.na(beta_new))) {
     beta_new <- ginv(Q_cum) %*% Q_beta_cum
   }
+  
+  # if (rcond(Q_cum) > 1e-10) {
+  #   beta_new <- solve(Q_cum, Q_beta_cum)
+  #   # beta_new <- solve(Q_cum) %*% Q_beta_cum
+  # } else {
+  #   beta_new <- ginv(Q_cum) %*% Q_beta_cum
+  # }
+  
   end_time <- Sys.time()
   elapsed <-  as.numeric(difftime(end_time, start_time, units = "secs"))
   return(list(beta_new = beta_new, Q_cum = Q_cum, Q_beta_cum = Q_beta_cum,
@@ -132,6 +145,8 @@ ReER <- function(X, Y, beta, Z_cum, tau) {
   
   W_vec <- weightMatrix(tau, X, Y, beta_iter)
   W_mat <- crossprod(X, X * W_vec)
+  #W_end <- Sys.time()
+  #W_elapsed <- W_elapsed + as.numeric(difftime(W_end, W_time, units = "secs"))
   Hess <- Z_cum + W_mat
   Grad <- Z_cum %*% beta_iter + crossprod(X, Y * W_vec)
   try({
@@ -141,7 +156,8 @@ ReER <- function(X, Y, beta, Z_cum, tau) {
   if (!exists("beta_new") || any(is.na(beta_new))) {
     beta_new <- ginv(Hess) %*% Grad
   }
-
+  
+  #elapsed <- max(0, as.numeric(difftime(end_time, start_time, units = "secs")) - W_elapsed)
   W_vec <- weightMatrix(tau, X, Y, beta_new)
   W_mat <- crossprod(X, X * W_vec)
   Z_cum <- Z_cum + W_mat
@@ -216,6 +232,7 @@ plot_summary_results <- function(summary_dir, save_plot = TRUE) {
 
 #---- online algorithm ----#
 data_split <- function(X, Y, random.Split = FALSE, K){ # random.Split = FALSE 确保stream场景是包含关系
+  #----------- 数据拆分 -----------
   #set.seed(123) 
   N <- length(Y)
   if(random.Split){
@@ -302,6 +319,8 @@ online_alg <- function(X, Y, random.Split = FALSE,
     total_time_DCER <- total_time_DCER + DCER_k$total_time_online + m$elapsed
     
     ### --- DCER2 ---
+    # m <- expectreg.ls(formula = regFormula, data = Data_k, expectiles = tau)
+    # beta_k <- c(m$intercepts, unlist(m$coefficients))
     
     DCER2_k <- DCER(X_k, Y_k, beta_k, Q_cum, Q_beta_cum, tau, covType = 'Homo')
     DCER2_est <- DCER2_k$beta_new %>% t()
@@ -349,6 +368,13 @@ plot_denisty <- function(all_estimates, save_dir) {
     reer_estimates <- do.call(rbind, lapply(beta_list, function(df) {
       as.numeric(df[df$Method == "ReER", -1])
     }))
+
+    # Extract the true coefficient vector.  The vertical reference line in
+    # each panel makes the finite-sample bias visible as the displacement
+    # between the true value and the center of the estimated distribution.
+    true_list <- all_estimates[[k_str]]$beta_true
+    true_mat <- do.call(rbind, lapply(true_list, function(v) as.numeric(v)))
+    true_betas <- colMeans(true_mat)
     
     # 2. 提取所有模拟的 ReER 理论 SE (200 x dim 矩阵)
     se_list <- all_estimates[[k_str]]$se_hat
@@ -358,12 +384,14 @@ plot_denisty <- function(all_estimates, save_dir) {
     mean_betas <- colMeans(reer_estimates)
     
     # 4. 计算 200 次模拟的理论 SE 的均值 (作为正态分布的标准差 sigma)
+    # 注意：这里使用 Mean_SE 更好的反映理论值，也可以尝试使用 Emp_SD 做对比
     mean_ses <- colMeans(reer_ses)
     
-    # 整理数据
+    # 整理数据用于 ggplot
     dim <- ncol(reer_estimates)
     plot_data_list <- list()
     curve_data_list <- list()
+    true_line_data_list <- list()
     
     for (d in 1:dim) {
       beta_label <- paste0("beta[", d-1, "]")
@@ -385,10 +413,16 @@ plot_denisty <- function(all_estimates, save_dir) {
         y = dnorm(x_range, mean = mu, sd = sigma),
         Parameter = beta_label
       )
+
+      true_line_data_list[[d]] <- data.frame(
+        TrueBeta = true_betas[d],
+        Parameter = beta_label
+      )
     }
     
     df_plot <- do.call(rbind, plot_data_list)
     df_curve <- do.call(rbind, curve_data_list)
+    df_true <- do.call(rbind, true_line_data_list)
     
     # 绘制图形
     p <- ggplot(df_plot, aes(x = Value)) +
@@ -398,6 +432,9 @@ plot_denisty <- function(all_estimates, save_dir) {
       # 2. 叠加理论正态分布曲线
       geom_line(data = df_curve, aes(x = x, y = y), 
                 color = "#404040", size = 1, linetype = "dashed") +
+      # 3. 真实参数值；与直方图/正态曲线中心的距离直观反映 bias
+      geom_vline(data = df_true, aes(xintercept = TrueBeta),
+                 color = "#C44E52", linewidth = 0.8, linetype = "solid") +
       # 分面展示每个 beta
       facet_wrap(~Parameter, scales = "free", labeller = label_parsed) +
       theme_minimal() +
@@ -411,7 +448,7 @@ plot_denisty <- function(all_estimates, save_dir) {
         plot.title = element_text(size = 14, face = "bold")
       )
     
-    # 保存plot
+    # 保存图片
     file_name <- paste0("denisty", k_str, ".pdf")
     ggsave(file.path(plot_dir, file_name), p, width = 8, height = 3, dpi = 300)
   }

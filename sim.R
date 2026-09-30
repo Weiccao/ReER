@@ -150,17 +150,6 @@ run_experiment <- function(sim_time = 200, dgpType = c('fixed','stream'), random
         X_k <- X_split[[k]]
         Y_k <- Y_split[[k]]
         
-        m_k<- er(tau, X_k, Y_k)
-        beta_k <- m_k$beta
-        elapse <- m_k$elapsed
-        # if(dgpType == 'fixed'){
-        #   elapse <- elapse/k_val
-        # } # 固定样本估计时间只记录一次
-        # total_time_ReER <- total_time_ReER + elapse
-        total_time_DCER <- total_time_DCER + elapse
-        total_time_PAER <- total_time_PAER + elapse
-        
-     
         beta_old <- ReER_path[(k - 1), ] # 区别于前两个模型 ReER 需要用到上一步骤的估计
         ReER_k <- ReER(X_k, Y_k, beta_old, Z_cum, tau = tau)
         ReER_est <- ReER_k$beta_new %>% t()
@@ -175,6 +164,16 @@ run_experiment <- function(sim_time = 200, dgpType = c('fixed','stream'), random
         H_inv_k <- ginv(Z_cum)
         cov_k <- H_inv_k %*% V_cum %*% H_inv_k
         ReER_se_path[k, ] <- sqrt(pmax(0, diag(cov_k)))
+        
+        m_k<- er(tau, X_k, Y_k)
+        beta_k <- m_k$beta
+        elapse <- m_k$elapsed
+        # if(dgpType == 'fixed'){
+        #   elapse <- elapse/k_val
+        # } # 固定样本估计时间只记录一次
+        # total_time_ReER <- total_time_ReER + elapse
+        total_time_DCER <- total_time_DCER + elapse
+        total_time_PAER <- total_time_PAER + elapse
         
         ## PAER
         PAER_k <- PAER(X_k, Y_k, beta_k, Sigma_cum, Theta_cum)
@@ -197,8 +196,8 @@ run_experiment <- function(sim_time = 200, dgpType = c('fixed','stream'), random
       ReER_final_se   <- ReER_se_path[k_val, ]
       est_methods <- c("Oracle", "DCER", "PAER", "ReER")
 
-      time_vec <- c(Time_Oracle,total_time_ReER,
-                    total_time_DCER, total_time_PAER)
+      time_vec <- c(Time_Oracle,total_time_DCER, 
+                    total_time_PAER, total_time_ReER)
       
        # if(dgpType == 'stream'){
        #   time_vec[-1] <- time_vec[-1]/k_val
@@ -336,6 +335,41 @@ run_experiment <- function(sim_time = 200, dgpType = c('fixed','stream'), random
 }
 
 # ==============================================================================
+# 测试部分
+dgpType = 'fixed'
+simType = "sim1"
+uDist = "norm"
+doScale = FALSE
+regFormula = 'Y ~ x1 + x2'
+Target_tau = 0.25
+save_dir = "./test/"
+N = 100000
+random.Split = FALSE
+tol = 1e-8
+max_iter = 100
+sim_time = 20
+
+run_experiment(
+  sim_time = 20, dgpType = 'fixed',
+  simType = "sim1",
+  uDist = "norm",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/test/"
+)
+
+run_experiment(
+  sim_time = 30, dgpType = 'stream',
+  simType = "sim2",
+  uDist = "t",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/test/"
+)
+
+# ==============================================================================
 # 模拟 N = 10000，固定场景
 run_experiment(
   sim_time = 500, dgpType = 'fixed',
@@ -343,9 +377,59 @@ run_experiment(
   uDist = "norm",
   doScale = FALSE,
   regFormula = 'Y ~ x1 + x2',
-  tau = Target_tau
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/fix/"
 )
 
+# summary(save_dir = "./S2/fix/", simType = "sim1",
+#         uDist = "norm")
+# plot_all_beta_metrics(save_dir = "./S2/fix/", simType = "sim1",
+#                       uDist = "norm")
+
+run_experiment(
+  sim_time = 500, dgpType = 'fixed',
+  simType = "sim1",
+  uDist = "t",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/fix/"
+)
+
+# summary(save_dir = "./S2/fix/", simType = "sim1",
+#         uDist = "t")
+# plot_all_beta_metrics(save_dir = "./S2/fix/", simType = "sim1",
+#                       uDist = "t")
+
+run_experiment(
+  sim_time = 500, dgpType = 'fixed',
+  simType = "sim2",
+  uDist = "norm",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/fix/"
+)
+
+# summary(save_dir = "./S2/fix/", simType = "sim2",
+#         uDist = "norm")
+# plot_all_beta_metrics(save_dir = "./S2/fix/", simType = "sim2",
+#                       uDist = "norm")
+
+run_experiment(
+  sim_time = 500, dgpType = 'fixed',
+  simType = "sim2",
+  uDist = "t",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/fix/"
+)
+
+# summary(save_dir = "./S2/fix/", simType = "sim2",
+#         uDist = "t")
+# plot_all_beta_metrics(save_dir = "./S2/fix/", simType = "sim2",
+#                       uDist = "t")
 
 # ==============================================================================
 
@@ -356,6 +440,55 @@ run_experiment(
   uDist = "norm",
   doScale = FALSE,
   regFormula = 'Y ~ x1 + x2',
-  tau = Target_tau
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/stream/"
 )
 
+# summary(save_dir = "./S2/stream/", simType = "sim1",
+#         uDist = "norm")
+# plot_all_beta_metrics(save_dir = "./S2/stream/", simType = "sim1",
+#                       uDist = "norm")
+
+run_experiment(
+  sim_time = 500, dgpType = 'stream',
+  simType = "sim1",
+  uDist = "t",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/stream/"
+)
+# summary(save_dir = "./S2/stream/", simType = "sim1",
+#         uDist = "t")
+# plot_all_beta_metrics(save_dir = "./S2/stream/", simType = "sim1",
+#                       uDist = "t")
+
+run_experiment(
+  sim_time = 500, dgpType = 'stream',
+  simType = "sim2",
+  uDist = "norm",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/stream/"
+)
+
+# summary(save_dir ="./S2/stream/", simType = "sim2",
+#         uDist = "norm")
+# plot_all_beta_metrics(save_dir = "./S2/stream/", simType = "sim2",
+#                       uDist = "norm")
+
+run_experiment(
+  sim_time = 500, dgpType = 'stream',
+  simType = "sim2",
+  uDist = "t",
+  doScale = FALSE,
+  regFormula = 'Y ~ x1 + x2',
+  tau = Target_tau,
+  save_dir = "/Users/weiccao/Desktop/stream/"
+)
+
+# summary(save_dir = "./S2/stream/", simType = "sim2",
+#         uDist = "t")
+# plot_all_beta_metrics(save_dir = "./S2/stream/", simType = "sim2",
+#                       uDist = "t")
